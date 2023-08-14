@@ -95,6 +95,7 @@ class MonsterTeam:
 
     def retrieve_from_team(self) -> MonsterBase:
         if self.current_size == 0:
+            return self.monster_order[0]
             raise ValueError("Team is empty.")
 
         retrieved_monster = self.monster_order[0]
@@ -114,10 +115,16 @@ class MonsterTeam:
 
     def special(self) -> None:
         if self.team_mode == self.TeamMode.FRONT:
-            self.monster_order.reverse_first_n(3)  # Reverse the first 3 monsters
+            num_monsters = min(3, self.current_size)  # Ensure not to exceed current size
+            for i in range(num_monsters // 2):
+                self.monster_order[i], self.monster_order[num_monsters - i - 1] = self.monster_order[num_monsters - i - 1], self.monster_order[i]
         elif self.team_mode == self.TeamMode.BACK:
             middle = self.current_size // 2
-            self.monster_order.swap_ranges(0, middle, middle, self.current_size)  # Swap first and second halves
+            for i in range(middle):
+                self.monster_order[i], self.monster_order[middle + i] = self.monster_order[middle + i], self.monster_order[i]
+            # Reverse the original second half of the team
+            for i in range(middle, self.current_size - 1):
+                self.monster_order[i], self.monster_order[self.current_size - 1] = self.monster_order[self.current_size - 1], self.monster_order[i]
         elif self.team_mode == self.TeamMode.OPTIMISE:
             # Toggle sorting order (ascending to descending, and vice versa)
             self.monster_order.sort_key = self.monster_order.sort_key.toggle_order()

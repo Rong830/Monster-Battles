@@ -61,9 +61,9 @@ class Battle:
             self.out2 = self.out2.evolve()
 
         # Check if any monsters fainted and replace them
-        if not self.out1.alive() and (self.team1.current_size > 0):
+        if not self.out1.alive():
             self.out1 = self.team1.retrieve_from_team()
-        if not self.out2.alive() and (self.team2.current_size > 0):
+        if not self.out2.alive():
             self.out2 = self.team2.retrieve_from_team()
 
         # Check if the battle is completed

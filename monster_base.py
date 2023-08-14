@@ -5,7 +5,7 @@ from stats import Stats
 
 class MonsterBase(abc.ABC):
 
-    def __init__(self, simple_mode=True, level:int=1) -> None:
+    def __init__(self, simple_mode=True, level:int=1, reduced_hp:int=0) -> None:
         """
         Initialise an instance of a monster.
 
@@ -14,15 +14,21 @@ class MonsterBase(abc.ABC):
         """
         self.simple_mode = simple_mode
         self.level = level
-        self.hp = self.get_max_hp()
+        self.original_level = level
+        self.hp = self.get_max_hp() - reduced_hp
 
+    def __str__(self) -> str:
+        return f"LV.{self.level} {self.get_name()}, {self.hp}/{self.get_max_hp()} HP"
+    
     def get_level(self):
         """The current level of this monster instance"""
         return self.level
 
     def level_up(self):
         """Increase the level of this monster instance by 1"""
+        reduced_hp = self.get_max_hp() - self.hp
         self.level += 1
+        self.hp = self.get_max_hp() - reduced_hp
 
     def get_hp(self):
         """Get the current HP of this monster instance"""
@@ -78,12 +84,13 @@ class MonsterBase(abc.ABC):
 
     def ready_to_evolve(self) -> bool:
         """Whether this monster is ready to evolve. See assignment spec for specific logic."""
-        return self.level != 1 and (self.get_evolution() is not None)
+        return (self.original_level != self.level) and (self.get_evolution() is not None)
 
     def evolve(self) -> MonsterBase:
         """Evolve this monster instance by returning a new instance of a monster class."""
         evolution_class = self.get_evolution()
-        return evolution_class(simple_mode=self.simple_mode, level=self.level)
+        reduced_hp = self.get_max_hp() - self.hp
+        return evolution_class(simple_mode=self.simple_mode, level=self.level, reduced_hp=reduced_hp)
 
     ### NOTE
     # Below is provided by the factory - classmethods
