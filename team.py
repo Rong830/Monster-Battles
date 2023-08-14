@@ -39,6 +39,9 @@ class MonsterTeam:
     def __init__(self, team_mode: TeamMode, selection_mode, **kwargs) -> None:
         # Add any preinit logic here.
         self.team_mode = team_mode
+        self.monster_order = ArrayR(self.TEAM_LIMIT)
+        self.current_size = 0
+
         if selection_mode == self.SelectionMode.RANDOM:
             self.select_randomly(**kwargs)
         elif selection_mode == self.SelectionMode.MANUAL:
@@ -48,19 +51,86 @@ class MonsterTeam:
         else:
             raise ValueError(f"selection_mode {selection_mode} not supported.")
 
+    def _get_sort_key_method(self):
+        if self.sort_key == self.SortMode.HP:
+            return lambda monster: monster.get_hp()
+        elif self.sort_key == self.SortMode.ATTACK:
+            return lambda monster: monster.get_attack()
+        elif self.sort_key == self.SortMode.DEFENSE:
+            return lambda monster: monster.get_defense()
+        elif self.sort_key == self.SortMode.SPEED:
+            return lambda monster: monster.get_speed()
+        elif self.sort_key == self.SortMode.LEVEL:
+            return lambda monster: monster.get_level()
+        
     def add_to_team(self, monster: MonsterBase):
-        raise NotImplementedError
+        if self.current_size >= self.TEAM_LIMIT:
+            raise ValueError("Team is already at maximum capacity.")
+
+        if self.team_mode == self.TeamMode.FRONT:
+            for i in range(self.current_size, 0, -1):
+                self.monster_order[i] = self.monster_order[i - 1]
+            self.monster_order[0] = monster
+        elif self.team_mode == self.TeamMode.BACK:
+            self.monster_order[self.current_size] = monster
+        elif self.team_mode == self.TeamMode.OPTIMISE:
+            # Find the position to insert the monster based on the sorting stat
+            insert_position = 0
+            sort_key_method = self._get_sort_key_method()  # Retrieve the appropriate method
+            
+            while (
+                insert_position < self.current_size
+                and sort_key_method(monster) > sort_key_method(self.monster_order[insert_position])
+            ):
+                insert_position += 1
+            
+            # Shift elements manually to make space for the new monster
+            for i in range(self.current_size, insert_position, -1):
+                self.monster_order[i] = self.monster_order[i - 1]
+
+            # Insert the monster at the correct position
+            self.monster_order[insert_position] = monster
+
+        self.current_size += 1
 
     def retrieve_from_team(self) -> MonsterBase:
-        raise NotImplementedError
+        if self.current_size == 0:
+            raise ValueError("Team is empty.")
+
+        retrieved_monster = self.monster_order[0]
+
+        if self.team_mode == self.TeamMode.FRONT:
+            # Shift remaining monsters to the left
+            for i in range(self.current_size - 1):
+                self.monster_order[i] = self.monster_order[i + 1]
+        elif self.team_mode == self.TeamMode.BACK:
+            # Shift remaining monsters to the left (excluding the last one)
+            for i in range(1, self.current_size):
+                self.monster_order[i - 1] = self.monster_order[i]
+
+        self.current_size -= 1
+
+        return retrieved_monster
 
     def special(self) -> None:
-        raise NotImplementedError
+        if self.team_mode == self.TeamMode.FRONT:
+            self.monster_order.reverse_first_n(3)  # Reverse the first 3 monsters
+        elif self.team_mode == self.TeamMode.BACK:
+            middle = self.current_size // 2
+            self.monster_order.swap_ranges(0, middle, middle, self.current_size)  # Swap first and second halves
+        elif self.team_mode == self.TeamMode.OPTIMISE:
+            # Toggle sorting order (ascending to descending, and vice versa)
+            self.monster_order.sort_key = self.monster_order.sort_key.toggle_order()
+            self.monster_order.sort()  # Sort the monsters based on the new order
 
     def regenerate_team(self) -> None:
-        raise NotImplementedError
+        for i in range(self.current_size):
+            self.monster_order[i].set_level(1)  # Reset to level 1
+            self.monster_order[i].restore_health()  # Restore full health
 
-    def select_randomly(self):
+    def select_randomly(self, sort_key=None):
+        self.sort_key = sort_key
+
         team_size = RandomGen.randint(1, self.TEAM_LIMIT)
         monsters = get_all_monsters()
         n_spawnable = 0
@@ -81,7 +151,7 @@ class MonsterTeam:
             else:
                 raise ValueError("Spawning logic failed.")
 
-    def select_manually(self):
+    def select_manually(self, sort_key=None):
         """
         Prompt the user for input on selecting the team.
         Any invalid input should have the code prompt the user again.
@@ -186,9 +256,14 @@ class MonsterTeam:
         This monster cannot be spawned.
         Which monster are you spawning? 1
         """
-        raise NotImplementedError
+        self.sort_key = sort_key
+        print("Select monsters manually for the team:")
+        for _ in range(self.TEAM_LIMIT):
+            monster_index = int(input(f"Enter the index of the monster (0 to {len(get_all_monsters()) - 1}): "))
+            monster = get_all_monsters()[monster_index]()
+            self.add_to_team(monster)
 
-    def select_provided(self, provided_monsters:Optional[ArrayR[type[MonsterBase]]]=None):
+    def select_provided(self, provided_monsters:Optional[ArrayR[type[MonsterBase]]]=None, sort_key=None):
         """
         Generates a team based on a list of already provided monster classes.
 
@@ -201,7 +276,13 @@ class MonsterTeam:
         Example team if in TeamMode.FRONT:
         [Gustwing Instance, Aquariuma Instance, Flamikin Instance]
         """
-        raise NotImplementedError
+        self.sort_key = sort_key
+        if not provided_monsters:
+            raise ValueError("No provided monsters found.")
+        
+        for monster_class in provided_monsters:
+            monster = monster_class()
+            self.add_to_team(monster)
 
     def choose_action(self, currently_out: MonsterBase, enemy: MonsterBase) -> Battle.Action:
         # This is just a placeholder function that doesn't matter much for testing.
@@ -209,6 +290,10 @@ class MonsterTeam:
         if currently_out.get_speed() >= enemy.get_speed() or currently_out.get_hp() >= enemy.get_hp():
             return Battle.Action.ATTACK
         return Battle.Action.SWAP
+
+    def __len__(self) -> int:
+        return self.current_size
+    
 
 if __name__ == "__main__":
     team = MonsterTeam(
