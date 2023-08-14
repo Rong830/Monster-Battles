@@ -125,8 +125,8 @@ class MonsterTeam:
 
     def regenerate_team(self) -> None:
         for i in range(self.current_size):
-            self.monster_order[i].set_level(1)  # Reset to level 1
-            self.monster_order[i].restore_health()  # Restore full health
+            self.monster_order[i].level = 1  # Reset to level 1
+            self.monster_order[i].hp = self.monster_order[i].get_max_hp()  # Restore full health
 
     def select_randomly(self, sort_key=None):
         self.sort_key = sort_key

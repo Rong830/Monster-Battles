@@ -14,8 +14,7 @@ class MonsterBase(abc.ABC):
         """
         self.simple_mode = simple_mode
         self.level = level
-        self.stats = None
-        self.hp = 0
+        self.hp = self.get_max_hp()
 
     def get_level(self):
         """The current level of this monster instance"""
@@ -36,30 +35,29 @@ class MonsterBase(abc.ABC):
     def get_attack(self):
         """Get the attack of this monster instance"""
         if self.simple_mode:
-            return self.stats.get_attack()
+            return self.get_simple_stats().get_attack()
         else:
-            return self.stats.get_attack(self.level)
+            return self.get_complex_stats().get_attack()
 
     def get_defense(self):
         """Get the defense of this monster instance"""
         if self.simple_mode:
-            return self.stats.get_defense()
+            return self.get_simple_stats().get_defense()
         else:
-            return self.stats.get_defense(self.level)
+            return self.get_complex_stats().get_defense()
 
     def get_speed(self):
         """Get the speed of this monster instance"""
         if self.simple_mode:
-            return self.stats.get_speed()
+            return self.get_simple_stats().get_speed()
         else:
-            return self.stats.get_speed(self.level)
-
+            return self.get_complex_stats().get_speed()
     def get_max_hp(self):
         """Get the maximum HP of this monster instance"""
         if self.simple_mode:
-            return self.stats.get_max_hp()
+            return self.get_simple_stats().get_max_hp()
         else:
-            return self.stats.get_max_hp(self.level)
+            return self.get_complex_stats().get_max_hp()
 
     def alive(self) -> bool:
         """Whether the current monster instance is alive (HP > 0 )"""
@@ -68,18 +66,24 @@ class MonsterBase(abc.ABC):
     def attack(self, other: MonsterBase):
         """Attack another monster instance"""
         # Step 1: Compute attack stat vs. defense stat
+        attack_power = self.get_attack()
+        defense_power = other.get_defense()
+        damage = max(1, attack_power - defense_power)
         # Step 2: Apply type effectiveness
+        # print(EffectivenessCalculator.get_effectiveness(Element.FIRE, Element.WATER))
+        
         # Step 3: Ceil to int
         # Step 4: Lose HP
-        raise NotImplementedError
+        other.set_hp(other.get_hp() - damage)
 
     def ready_to_evolve(self) -> bool:
         """Whether this monster is ready to evolve. See assignment spec for specific logic."""
-        return self.level != 1
+        return self.level != 1 and (self.get_evolution() is not None)
 
     def evolve(self) -> MonsterBase:
         """Evolve this monster instance by returning a new instance of a monster class."""
-        raise NotImplementedError
+        evolution_class = self.get_evolution()
+        return evolution_class(simple_mode=self.simple_mode, level=self.level)
 
     ### NOTE
     # Below is provided by the factory - classmethods

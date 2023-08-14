@@ -1,5 +1,6 @@
 import abc
-
+import math
+from typing import List
 from data_structures.referential_array import ArrayR
 
 class Stats(abc.ABC):
@@ -51,16 +52,51 @@ class ComplexStats(Stats):
         max_hp_formula: ArrayR[str],
     ) -> None:
         # TODO: Implement
-        pass
+        self.attack_formula = attack_formula
+        self.defense_formula = defense_formula
+        self.speed_formula = speed_formula
+        self.max_hp_formula = max_hp_formula
+
+    def evaluate_expression(self, expression: List[str], level: int) -> int:
+        stack = []
+        for token in expression:
+            if token.isnumeric():
+                stack.append(int(token))
+            elif token == 'level':
+                stack.append(level)
+            elif token == '+':
+                stack.append(stack.pop() + stack.pop())
+            elif token == '-':
+                b = stack.pop()
+                a = stack.pop()
+                stack.append(a - b)
+            elif token == '*':
+                stack.append(stack.pop() * stack.pop())
+            elif token == '/':
+                b = stack.pop()
+                a = stack.pop()
+                stack.append(a // b)
+            elif token == 'power':
+                b = stack.pop()
+                a = stack.pop()
+                stack.append(a ** b)
+            elif token == 'sqrt':
+                stack.append(int(math.sqrt(stack.pop())))
+            elif token == 'middle':
+                c = stack.pop()
+                b = stack.pop()
+                a = stack.pop()
+                stack.append(int(sorted([a, b, c])[1]))
+        return stack.pop()
 
     def get_attack(self, level: int):
-        raise NotImplementedError
+        return self.evaluate_expression(self.attack_formula, level)
 
     def get_defense(self, level: int):
-        raise NotImplementedError
+        return self.evaluate_expression(self.defense_formula, level)
 
     def get_speed(self, level: int):
-        raise NotImplementedError
+        return self.evaluate_expression(self.speed_formula, level)
 
     def get_max_hp(self, level: int):
-        raise NotImplementedError
+        return self.evaluate_expression(self.max_hp_formula, level)
