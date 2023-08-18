@@ -41,6 +41,8 @@ class MonsterTeam:
         self.team_mode = team_mode
         self.monster_order = ArrayR(self.TEAM_LIMIT)
         self.current_size = 0
+        if 'provided_monsters' in kwargs:
+            self.provided_monsters = kwargs.get("provided_monsters")
 
         if selection_mode == self.SelectionMode.RANDOM:
             self.select_randomly(**kwargs)
@@ -114,23 +116,60 @@ class MonsterTeam:
         return retrieved_monster
 
     def special(self) -> None:
+        # if self.team_mode == self.TeamMode.FRONT:
+        #     num_monsters = min(3, self.current_size)  # Ensure not to exceed current size
+        #     for i in range(num_monsters // 2):
+        #         self.monster_order[i], self.monster_order[num_monsters - i - 1] = self.monster_order[num_monsters - i - 1], self.monster_order[i]
+        # elif self.team_mode == self.TeamMode.BACK:
+        #     middle = self.current_size // 2
+        #     for i in range(middle):
+        #         self.monster_order[i], self.monster_order[middle + i] = self.monster_order[middle + i], self.monster_order[i]
+        #     # Reverse the original second half of the team
+        #     # for i in range(middle, self.current_size - 1):
+        #     #     self.monster_order[i], self.monster_order[self.current_size - 1] = self.monster_order[self.current_size - 1], self.monster_order[i]
+        # elif self.team_mode == self.TeamMode.OPTIMISE:
+        #     # Toggle sorting order (ascending to descending, and vice versa)
+        #     self.monster_order.sort_key = self.monster_order.sort_key.toggle_order()
+        #     self.monster_order.sort()  # Sort the monsters based on the new order
+        
+        middle_index = self.current_size // 2
         if self.team_mode == self.TeamMode.FRONT:
-            num_monsters = min(3, self.current_size)  # Ensure not to exceed current size
-            for i in range(num_monsters // 2):
-                self.monster_order[i], self.monster_order[num_monsters - i - 1] = self.monster_order[num_monsters - i - 1], self.monster_order[i]
+            self.monster_order[middle_index-1], self.monster_order[middle_index] = self.monster_order[middle_index], self.monster_order[middle_index-1]
+
         elif self.team_mode == self.TeamMode.BACK:
-            middle = self.current_size // 2
-            for i in range(middle):
-                self.monster_order[i], self.monster_order[middle + i] = self.monster_order[middle + i], self.monster_order[i]
-            # Reverse the original second half of the team
-            for i in range(middle, self.current_size - 1):
-                self.monster_order[i], self.monster_order[self.current_size - 1] = self.monster_order[self.current_size - 1], self.monster_order[i]
+            for i in range(middle_index):
+                j = self.current_size - i - 1
+                x = self.monster_order[i]
+                y = self.monster_order[j]
+                self.monster_order[j] = x
+                self.monster_order[i] = y
+
+            if middle_index > 1:
+                if (self.current_size % 2) == 0:
+                    self.monster_order[middle_index], self.monster_order[self.current_size-1] = self.monster_order[self.current_size-1], self.monster_order[middle_index]
+                else:
+                    self.monster_order[middle_index+1], self.monster_order[self.current_size-1] = self.monster_order[self.current_size-1], self.monster_order[middle_index+1]
         elif self.team_mode == self.TeamMode.OPTIMISE:
-            # Toggle sorting order (ascending to descending, and vice versa)
-            self.monster_order.sort_key = self.monster_order.sort_key.toggle_order()
-            self.monster_order.sort()  # Sort the monsters based on the new order
+            # Toggle the sorting order of monsters based on the specified stat
+            if self.optimise_order == "desc":
+                self.optimise_order = "asc"
+                self.monster_order.sort(key=lambda monster: getattr(monster, self.optimise_stat), reverse=False)
+            else:
+                self.optimise_order = "desc"
+                self.monster_order.sort(key=lambda monster: getattr(monster, self.optimise_stat), reverse=True)
 
     def regenerate_team(self) -> None:
+        if self.provided_monsters:
+            for i in range(self.TEAM_LIMIT):
+                self.monster_order[i] = self.monster_order[-1]
+
+            self.current_size = 0
+            for i, m in enumerate(self.provided_monsters):
+                self.monster_order[i] = m()
+                self.monster_order[i].level = 1  # Reset to level 1
+                self.monster_order[i].hp = self.monster_order[i].get_max_hp()  # Restore full health
+                self.current_size += 1
+            return 
         for i in range(self.current_size):
             self.monster_order[i].level = 1  # Reset to level 1
             self.monster_order[i].hp = self.monster_order[i].get_max_hp()  # Restore full health
@@ -264,11 +303,29 @@ class MonsterTeam:
         Which monster are you spawning? 1
         """
         self.sort_key = sort_key
-        print("Select monsters manually for the team:")
-        for _ in range(self.TEAM_LIMIT):
-            monster_index = int(input(f"Enter the index of the monster (0 to {len(get_all_monsters()) - 1}): "))
-            monster = get_all_monsters()[monster_index]()
-            self.add_to_team(monster)
+        team_size_limit = 6
+        team_size = int(input("How many monsters are there? "))
+        # assert team_size <= team_size_limit
+
+        print("MONSTERS ARE:")
+        monsters = get_all_monsters()
+        for i, monster_cls in enumerate(monsters, start=1):
+            spawnable = "✔️" if monster_cls.can_be_spawned() else "❌"
+            print(f"{i}: {monster_cls.get_name()} [{spawnable}]")
+        
+        for _ in range(team_size):
+            while True:
+                selection = int(input("Which monster are you spawning? "))
+                if selection < 1 or selection > len(monsters):
+                    print("Invalid selection. Please choose a valid index.")
+                    continue
+                
+                monster_cls = monsters[selection - 1]
+                if not monster_cls.can_be_spawned():
+                    print("This monster cannot be spawned.")
+                else:
+                    self.add_to_team(monster_cls())
+                    break
 
     def select_provided(self, provided_monsters:Optional[ArrayR[type[MonsterBase]]]=None, sort_key=None):
         """
