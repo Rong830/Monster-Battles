@@ -82,7 +82,7 @@ class MonsterTeam:
             
             while (
                 insert_position < self.current_size
-                and sort_key_method(monster) > sort_key_method(self.monster_order[insert_position])
+                and sort_key_method(monster) < sort_key_method(self.monster_order[insert_position])
             ):
                 insert_position += 1
             
@@ -98,7 +98,6 @@ class MonsterTeam:
     def retrieve_from_team(self) -> MonsterBase:
         if self.current_size == 0:
             return self.monster_order[0]
-            raise ValueError("Team is empty.")
 
         retrieved_monster = self.monster_order[0]
 
@@ -110,6 +109,9 @@ class MonsterTeam:
             # Shift remaining monsters to the left (excluding the last one)
             for i in range(1, self.current_size):
                 self.monster_order[i - 1] = self.monster_order[i]
+        elif self.team_mode == self.TeamMode.OPTIMISE:
+            for i in range(self.current_size - 1):
+                self.monster_order[i] = self.monster_order[i + 1]
 
         self.current_size -= 1
 
@@ -133,11 +135,18 @@ class MonsterTeam:
                     self.monster_order[middle_index], self.monster_order[self.current_size-1] = self.monster_order[self.current_size-1], self.monster_order[middle_index]
                 else:
                     self.monster_order[middle_index+1], self.monster_order[self.current_size-1] = self.monster_order[self.current_size-1], self.monster_order[middle_index+1]
-        
+
         elif self.team_mode == self.TeamMode.OPTIMISE:
             sort_key_method = self._get_sort_key_method()  # Retrieve the appropriate method
-            # Toggle sorting order between descending and ascending
-            self.monster_order.sort(key=sort_key_method, reverse=(not self.sort_ascending))
+
+            index_dict = {
+                monster: sort_key_method(monster)
+                for monster in self.monster_order
+                if monster is not None
+            }
+            monsters = sorted(index_dict, key=lambda x: index_dict[x])
+            for i, monster in enumerate(monsters):
+                self.monster_order[i] = monster
 
     def regenerate_team(self) -> None:
         if self.provided_monsters:
@@ -292,8 +301,10 @@ class MonsterTeam:
         """
         self.sort_key = sort_key
         team_size = int(input("How many monsters are there? "))
-        # assert team_size <= team_size_limit
-
+        while team_size > self.TEAM_LIMIT:
+            print("Too many monsters.")
+            int(input("How many monsters are there? "))
+            
         print("MONSTERS ARE:")
         monsters = get_all_monsters()
         for i, monster_cls in enumerate(monsters, start=1):
