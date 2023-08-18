@@ -134,7 +134,7 @@ class MonsterTeam:
         
         middle_index = self.current_size // 2
         if self.team_mode == self.TeamMode.FRONT:
-            self.monster_order[middle_index-1], self.monster_order[middle_index] = self.monster_order[middle_index], self.monster_order[middle_index-1]
+            self.monster_order[0], self.monster_order[middle_index] = self.monster_order[middle_index], self.monster_order[0]
 
         elif self.team_mode == self.TeamMode.BACK:
             for i in range(middle_index):
@@ -165,9 +165,16 @@ class MonsterTeam:
 
             self.current_size = 0
             for i, m in enumerate(self.provided_monsters):
-                self.monster_order[i] = m()
-                self.monster_order[i].level = 1  # Reset to level 1
-                self.monster_order[i].hp = self.monster_order[i].get_max_hp()  # Restore full health
+                if self.team_mode == self.TeamMode.FRONT:
+                    num = len(self.provided_monsters)
+                    self.monster_order[num-i-1] = m()
+                    self.monster_order[num-i-1].level = 1  # Reset to level 1
+                    self.monster_order[num-i-1].hp = self.monster_order[num-i-1].get_max_hp()  # Restore full health
+
+                elif self.team_mode == self.TeamMode.BACK:
+                    self.monster_order[i] = m()
+                    self.monster_order[i].level = 1  # Reset to level 1
+                    self.monster_order[i].hp = self.monster_order[i].get_max_hp()  # Restore full health
                 self.current_size += 1
             return 
         for i in range(self.current_size):
