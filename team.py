@@ -43,6 +43,8 @@ class MonsterTeam:
         self.current_size = 0
         if 'provided_monsters' in kwargs:
             self.provided_monsters = kwargs.get("provided_monsters")
+        else:
+            self.provided_monsters = None
 
         if selection_mode == self.SelectionMode.RANDOM:
             self.select_randomly(**kwargs)
@@ -304,7 +306,7 @@ class MonsterTeam:
         while team_size > self.TEAM_LIMIT:
             print("Too many monsters.")
             int(input("How many monsters are there? "))
-            
+
         print("MONSTERS ARE:")
         monsters = get_all_monsters()
         for i, monster_cls in enumerate(monsters, start=1):

@@ -15,27 +15,63 @@ class BattleTower:
 
     def __init__(self, battle: Battle|None=None) -> None:
         self.battle = battle or Battle(verbosity=0)
+        self.player_team = None
+        self.enemy_teams = []
+        self.enemy_teams_order = []
 
     def set_my_team(self, team: MonsterTeam) -> None:
         # Generate the team lives here too.
-        raise NotImplementedError
+        self.player_team = team
+        self.player_team.regenerate_team()
+        self.player_team.lives = RandomGen.randint(self.MIN_LIVES, self.MAX_LIVES + 1)
 
     def generate_teams(self, n: int) -> None:
-        raise NotImplementedError
+        for _ in range(n):
+            enemy_team = MonsterTeam(MonsterTeam.TeamMode.BACK, MonsterTeam.SelectionMode.RANDOM)
+            enemy_team.regenerate_team()
+            enemy_team.lives = RandomGen.randint(self.MIN_LIVES, self.MAX_LIVES + 1)
+            self.enemy_teams.append(enemy_team)
+            self.enemy_teams_order.append(enemy_team)
 
     def battles_remaining(self) -> bool:
-        raise NotImplementedError
+        return self.player_team.lives > 0 and any(team.lives > 0 for team in self.enemy_teams)
 
     def next_battle(self) -> tuple[Battle.Result, MonsterTeam, MonsterTeam, int, int]:
-        raise NotImplementedError
+        if not self.battles_remaining():
+            raise ValueError("No battles remaining.")
+
+        enemy_team = self.enemy_teams_order.pop(0)
+        result, player_lives, enemy_lives = self.battle.battle(self.player_team, enemy_team)
+        return result, self.player_team, enemy_team, player_lives, enemy_lives
 
     def out_of_meta(self) -> ArrayR[Element]:
-        raise NotImplementedError
+        elements_present = ArrayR(len(Element), False)
+        
+        for team in self.enemy_teams:
+            for monster in team.monster_order:
+                for element in Element:
+                    if element in monster.get_element():
+                        elements_present[element.value - 1] = True
+        
+        for monster in self.player_team.monster_order:
+            for element in Element:
+                if element in monster.get_element():
+                    elements_present[element.value - 1] = True
+
+        return elements_present.filter(lambda x: not x)
 
     def sort_by_lives(self):
         # 1054 ONLY
         raise NotImplementedError
 
+    def __next__(self):
+        if not self.battles_remaining():
+            raise StopIteration
+        return self.next_battle()
+    
+    def __iter__(self):
+        return self
+    
 def tournament_balanced(tournament_array: ArrayR[str]):
     # 1054 ONLY
     raise NotImplementedError
