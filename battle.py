@@ -45,7 +45,7 @@ class Battle:
             '''
             attack = m1.get_attack()
             defense = m2.get_defense()
-            if defense < attack / 2:
+            if defense < (attack / 2):
                 return math.ceil(attack - defense)
             elif defense < attack:
                 return math.ceil((attack * 5/8) - (defense / 4))

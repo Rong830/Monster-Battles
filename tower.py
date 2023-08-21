@@ -39,10 +39,17 @@ class BattleTower:
     def next_battle(self) -> tuple[Battle.Result, MonsterTeam, MonsterTeam, int, int]:
         if not self.battles_remaining():
             raise ValueError("No battles remaining.")
+        
+        if not self.enemy_teams_order:
+            for enemy_team in self.enemy_teams:
+                enemy_team.regenerate_team()
+                enemy_team.lives -= 1
+                self.enemy_teams_order.append(enemy_team)
 
         enemy_team = self.enemy_teams_order.pop(0)
-        result, player_lives, enemy_lives = self.battle.battle(self.player_team, enemy_team)
-        return result, self.player_team, enemy_team, player_lives, enemy_lives
+        result = self.battle.battle(self.player_team, enemy_team)
+
+        return result, self.player_team, enemy_team, self.player_team.lives, enemy_team.lives
 
     def out_of_meta(self) -> ArrayR[Element]:
         elements_present = ArrayR(len(Element), False)
@@ -65,9 +72,10 @@ class BattleTower:
         raise NotImplementedError
 
     def __next__(self):
-        if not self.battles_remaining():
-            raise StopIteration
-        return self.next_battle()
+        while self.battles_remaining():
+            print(f'{"*"*10} Player lives: {self.player_team.lives} | enemy lives: {[team.lives for team in self.enemy_teams]} {"*"*10}')
+            return self.next_battle()
+        raise StopIteration
     
     def __iter__(self):
         return self
