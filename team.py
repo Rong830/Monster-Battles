@@ -305,7 +305,7 @@ class MonsterTeam:
         team_size = int(input("How many monsters are there? "))
         while team_size > self.TEAM_LIMIT:
             print("Too many monsters.")
-            int(input("How many monsters are there? "))
+            team_size = int(input("How many monsters are there? "))
 
         print("MONSTERS ARE:")
         monsters = get_all_monsters()
