@@ -17,19 +17,20 @@ class BattleTower:
         self.battle = battle or Battle(verbosity=0)
         self.player_team = None
         self.enemy_teams = []
+        self.enemy_team = None
         self.enemy_teams_order = []
 
     def set_my_team(self, team: MonsterTeam) -> None:
         # Generate the team lives here too.
         self.player_team = team
         self.player_team.regenerate_team()
-        self.player_team.lives = RandomGen.randint(self.MIN_LIVES, self.MAX_LIVES + 1)
+        self.player_team.lives = RandomGen.randint(self.MIN_LIVES, self.MAX_LIVES)
 
     def generate_teams(self, n: int) -> None:
         for _ in range(n):
             enemy_team = MonsterTeam(MonsterTeam.TeamMode.BACK, MonsterTeam.SelectionMode.RANDOM)
             enemy_team.regenerate_team()
-            enemy_team.lives = RandomGen.randint(self.MIN_LIVES, self.MAX_LIVES + 1)
+            enemy_team.lives = RandomGen.randint(self.MIN_LIVES, self.MAX_LIVES)
             self.enemy_teams.append(enemy_team)
             self.enemy_teams_order.append(enemy_team)
 
@@ -39,17 +40,28 @@ class BattleTower:
     def next_battle(self) -> tuple[Battle.Result, MonsterTeam, MonsterTeam, int, int]:
         if not self.battles_remaining():
             raise ValueError("No battles remaining.")
+
+        if self.enemy_team is None:
+            self.enemy_team = self.enemy_teams_order.pop(0)
+        result = self.battle.battle(self.player_team, self.enemy_team)
+        return_player_lives = self.player_team.lives
+        return_enemy_lives = self.enemy_team.lives
+
+        if result == Battle.Result.TEAM2 and (self.player_team.lives > 0):
+            self.player_team.lives -= 1
+            self.player_team.regenerate_team()
+        elif result == Battle.Result.TEAM1:
+            if not self.enemy_teams_order:
+                for enemy_team in self.enemy_teams:
+                    if enemy_team.lives > 0:
+                        enemy_team.lives -= 1
+                        enemy_team.regenerate_team()
+                        self.enemy_teams_order.append(enemy_team)
+                self.enemy_team = None
+            self.enemy_team = self.enemy_teams_order.pop(0)
+        # elif result == Battle.Result.DRAW:
         
-        if not self.enemy_teams_order:
-            for enemy_team in self.enemy_teams:
-                enemy_team.regenerate_team()
-                enemy_team.lives -= 1
-                self.enemy_teams_order.append(enemy_team)
-
-        enemy_team = self.enemy_teams_order.pop(0)
-        result = self.battle.battle(self.player_team, enemy_team)
-
-        return result, self.player_team, enemy_team, self.player_team.lives, enemy_team.lives
+        return result, self.player_team, self.enemy_team, return_player_lives, return_enemy_lives
 
     def out_of_meta(self) -> ArrayR[Element]:
         elements_present = ArrayR(len(Element), False)
@@ -74,6 +86,7 @@ class BattleTower:
     def __next__(self):
         while self.battles_remaining():
             print(f'{"*"*10} Player lives: {self.player_team.lives} | enemy lives: {[team.lives for team in self.enemy_teams]} {"*"*10}')
+
             return self.next_battle()
         raise StopIteration
     

@@ -129,6 +129,7 @@ class TestTower(TestCase):
 
         got = []
         while bt.battles_remaining():
+            print(f'{"*"*10} Player lives: {bt.player_team.lives} | enemy lives: {[team.lives for team in bt.enemy_teams]} {"*"*10}')
             result, team1, team2, lives1, lives2 = bt.next_battle()
             got.append((result, lives1, lives2))
 
